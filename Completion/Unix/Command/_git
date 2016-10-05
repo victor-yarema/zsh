@@ -5935,10 +5935,17 @@ __git_files () {
   zparseopts -D -E -a opts -- -cached -deleted -modified -others -ignored -unmerged -killed x+: --exclude+:
   tag=$1 description=$2; shift 2
 
-  gitcdup=$(_call_program gitcdup git rev-parse --show-cdup 2>/dev/null)
+  GitAlt="$(git config --get zsh.git-alt)"
+  if [[ "${GitAlt}" == "" ]]; then
+    GitApp='git'
+  else
+    GitApp="${GitAlt}"
+  fi
+
+  gitcdup=$(_call_program gitcdup "${GitApp}" rev-parse --show-cdup 2>/dev/null)
   __git_command_successful $pipestatus || return 1
 
-  gitprefix=$(_call_program gitprefix git rev-parse --show-prefix 2>/dev/null)
+  gitprefix=$(_call_program gitprefix "${GitApp}" rev-parse --show-prefix 2>/dev/null)
   __git_command_successful $pipestatus || return 1
 
   # TODO: --directory should probably be added to $opts when --others is given.
@@ -5946,12 +5953,12 @@ __git_files () {
   local pref=$gitcdup$gitprefix$PREFIX
 
   # First allow ls-files to pattern-match in case of remote repository
-  files=(${(0)"$(_call_program files git ls-files -z --exclude-standard $opts -- ${pref:+$pref\\\*} 2>/dev/null)"})
+  files=(${(0)"$(_call_program files "${GitApp}" ls-files -z --exclude-standard $opts -- ${pref:+$pref\\\*} 2>/dev/null)"})
   __git_command_successful $pipestatus || return
 
   # If ls-files succeeded but returned nothing, try again with no pattern
   if [[ -z "$files" && -n "$pref" ]]; then
-    files=(${(0)"$(_call_program files git ls-files -z --exclude-standard $opts -- 2>/dev/null)"})
+    files=(${(0)"$(_call_program files "${GitApp}" ls-files -z --exclude-standard $opts -- 2>/dev/null)"})
     __git_command_successful $pipestatus || return
   fi
 
