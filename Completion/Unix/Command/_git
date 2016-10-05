@@ -5927,18 +5927,36 @@ __git_files_relative () {
   print ${(pj:\0:)files}
 }
 
+(( $+functions[__GitApp] )) ||
+__GitApp() (
+  [ -z "${GitApp+x}" ] ||
+  {
+    echo "${GitApp}"
+    return
+  }
+
+  GitAlt="$(git config --get zsh.git-alt)"
+  if [[ "${GitAlt}" == "" ]]; then
+    echo 'git'
+  else
+    echo "${GitAlt}"
+  fi
+)
+
 (( $+functions[__git_files] )) ||
 __git_files () {
+  local GitApp="$(__GitApp)"
+
   local compadd_opts opts tag description gitcdup gitprefix files expl
 
   zparseopts -D -E -a compadd_opts V: J: 1 2 n f X: M: P: S: r: R: q F:
   zparseopts -D -E -a opts -- -cached -deleted -modified -others -ignored -unmerged -killed x+: --exclude+:
   tag=$1 description=$2; shift 2
 
-  gitcdup=$(_call_program gitcdup git rev-parse --show-cdup 2>/dev/null)
+  gitcdup=$(_call_program gitcdup "${GitApp}" rev-parse --show-cdup 2>/dev/null)
   __git_command_successful $pipestatus || return 1
 
-  gitprefix=$(_call_program gitprefix git rev-parse --show-prefix 2>/dev/null)
+  gitprefix=$(_call_program gitprefix "${GitApp}" rev-parse --show-prefix 2>/dev/null)
   __git_command_successful $pipestatus || return 1
 
   # TODO: --directory should probably be added to $opts when --others is given.
@@ -5946,12 +5964,12 @@ __git_files () {
   local pref=$gitcdup$gitprefix$PREFIX
 
   # First allow ls-files to pattern-match in case of remote repository
-  files=(${(0)"$(_call_program files git ls-files -z --exclude-standard $opts -- ${pref:+$pref\\\*} 2>/dev/null)"})
+  files=(${(0)"$(_call_program files "${GitApp}" ls-files -z --exclude-standard $opts -- ${pref:+$pref\\\*} 2>/dev/null)"})
   __git_command_successful $pipestatus || return
 
   # If ls-files succeeded but returned nothing, try again with no pattern
   if [[ -z "$files" && -n "$pref" ]]; then
-    files=(${(0)"$(_call_program files git ls-files -z --exclude-standard $opts -- 2>/dev/null)"})
+    files=(${(0)"$(_call_program files "${GitApp}" ls-files -z --exclude-standard $opts -- 2>/dev/null)"})
     __git_command_successful $pipestatus || return
   fi
 
